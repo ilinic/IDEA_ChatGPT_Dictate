@@ -17,7 +17,7 @@ No data leaves your computer. The plugin never submits a chat message and does n
 ## Build in IntelliJ IDEA (Windows)
 
 - Open the cloned repository as a Gradle project.
-- Use **JDK 21** for the Gradle build; IntelliJ can download the requested Java toolchain. The included Gradle Wrapper downloads **Gradle 9.1.0** on first use. The target IDE is IntelliJ IDEA **2025.3.3**, and the plugin declares compatibility with build `253` and newer (actual compatibility with newer releases still needs testing).
+- The Java code targets **JDK 21**. The Gradle Foojay toolchain resolver automatically downloads a compatible JDK 21 if it is not available locally, provided Gradle can already start on Java 17+ and has Internet access. The included Gradle Wrapper downloads **Gradle 9.1.0** on first use. The target IDE is IntelliJ IDEA **2025.3.3**, and the plugin declares compatibility with build `253` and newer (actual compatibility with newer releases still needs testing).
 - In the Gradle tool window, run `Tasks > intellij platform > buildPlugin`, or execute `gradlew.bat buildPlugin` from Windows Command Prompt.
 - Install the ZIP in `build/distributions/` using **Settings → Plugins → ⚙ → Install Plugin from Disk**. Alternatively, run `gradle runIde` to launch a development IDE.
 
