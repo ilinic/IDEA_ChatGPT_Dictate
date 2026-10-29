@@ -1,0 +1,32 @@
+<idea-plugin>
+    <id>nz.ilinic.ideadictate</id>
+    <name>IDEA ChatGPT Dictate — Feasibility Probe</name>
+    <vendor>ilinic</vendor>
+    <description><![CDATA[
+        Diagnostic proof of concept for project-aware OpenAI dictation into an IDE AI chat composer.
+        Reports editor context, discovers recent local Codex sessions, and tests focused-field insertion.
+        Does not record audio, send data to a server, or send chat messages.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.java</depends>
+
+    <actions>
+        <group id="nz.ilinic.ideadictate.ToolsGroup"
+               text="IDEA ChatGPT Dictate"
+               popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="nz.ilinic.ideadictate.InspectContext"
+                    class="nz.ilinic.ideadictate.ContextDiagnosticsAction"
+                    text="Inspect IDE and Codex Context"
+                    description="Show editor PSI context and recent local Codex session candidates"/>
+            <action id="nz.ilinic.ideadictate.InsertMarker"
+                    class="nz.ilinic.ideadictate.InsertTestTextAction"
+                    text="Insert Test Marker at Caret"
+                    description="Paste a harmless marker at the currently focused text cursor (never sends a message)">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift M"/>
+            </action>
+        </group>
+    </actions>
+</idea-plugin>
+
