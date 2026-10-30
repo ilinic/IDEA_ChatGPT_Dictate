@@ -10,6 +10,7 @@ public final class ToggleRecordingAction extends AnAction implements DumbAware {
     @Override
     public void update(@NotNull AnActionEvent event) {
         event.getPresentation().setEnabled(event.getProject() != null);
+        event.getPresentation().setText(I18n.text("menu.toggle"));
     }
 
     @Override

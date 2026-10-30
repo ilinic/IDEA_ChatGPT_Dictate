@@ -40,12 +40,12 @@ public final class VoiceDictationService implements Disposable {
                 try { active.stop(); } catch (RuntimeException ignored) { }
                 active.close();
             }
-            DictateNotifications.info(project, "Запись остановлена. Распознаю речь через OpenAI…");
+            DictateNotifications.info(project, I18n.text("recording.stop"));
             return;
         }
 
         if (!busy.compareAndSet(false, true)) {
-            DictateNotifications.info(project, "Предыдущая диктовка ещё обрабатывается. Подожди результат.");
+            DictateNotifications.info(project, I18n.text("recording.wait"));
             return;
         }
         // Snapshot the original prompt focus, preventing accidental paste into source code later.
@@ -57,14 +57,14 @@ public final class VoiceDictationService implements Disposable {
             if (apiKey == null) {
                 recording.set(false);
                 busy.set(false);
-                DictateNotifications.warning(project, "Сначала укажи API-ключ: Tools → IDEA ChatGPT Dictate → Настройки…");
+                DictateNotifications.warning(project, I18n.text("recording.noKey"));
                 return;
             }
             if (!recording.get()) {
                 busy.set(false);
                 return;
             }
-            DictateNotifications.info(project, "🎙 Запись начата. Нажми ту же F-клавишу ещё раз для остановки.");
+            DictateNotifications.info(project, "🎙 " + I18n.text("recording.start"));
             captureAndTranscribe(apiKey, editor, expectedFocus);
         });
     }
@@ -95,7 +95,7 @@ public final class VoiceDictationService implements Disposable {
                 }
             }
             if (line == null || format == null) {
-                DictateNotifications.error(project, "Микрофон недоступен. Проверь устройство ввода и доступ IDEA к микрофону в Windows.");
+                DictateNotifications.error(project, I18n.text("recording.noMic"));
                 return;
             }
 
@@ -113,17 +113,17 @@ public final class VoiceDictationService implements Disposable {
             }
             recording.set(false);
             if (pcm.size() >= maxBytes) {
-                DictateNotifications.info(project, "Достигнут лимит записи 120 секунд, обрабатываю аудио.");
+                DictateNotifications.info(project, I18n.text("recording.maxTime"));
             }
 
             long durationMs = (System.nanoTime() - start) / 1_000_000;
             if (durationMs < MIN_RECORD_MILLIS || pcm.size() < format.getFrameSize() * 100) {
-                DictateNotifications.warning(project, "Запись слишком короткая. Попробуй ещё раз.");
+                DictateNotifications.warning(project, I18n.text("recording.short"));
                 return;
             }
         } catch (RuntimeException error) {
             if (recording.get() || pcm.size() == 0) {
-                DictateNotifications.error(project, "Ошибка записи микрофона: " + safeMessage(error));
+                DictateNotifications.error(project, I18n.text("recording.error", safeMessage(error)));
                 return;
             }
             // Some Windows audio drivers throw when stop() closes a blocking read().
@@ -138,28 +138,29 @@ public final class VoiceDictationService implements Disposable {
 
         try {
             byte[] wav = makeWav(pcm.toByteArray(), format);
-            String history = PinnedConversation.context(project);
-            String context = editorContext + (history.isBlank() ? "" : "\nВЫБРАННЫЙ ДИАЛОГ CODEX:\n" + history);
-            String speechHints = editorContext + (history.isBlank() ? "" : "\nНедавняя переписка:\n"
+            String history = SettingsPrefs.useCodexContext()
+                    ? CodexSessionScanner.currentContext(project.getBasePath(), SettingsPrefs.contextTurns()) : "";
+            String context = editorContext + (history.isBlank() ? "" : "\nRECENT CODEX CHAT:\n" + history);
+            String speechHints = editorContext + (history.isBlank() ? "" : "\nRecent conversation:\n"
                     + history.substring(Math.max(0, history.length() - 1100)));
             OpenAIClient client = new OpenAIClient(apiKey);
 
-            DictateNotifications.info(project, "OpenAI: распознаю запись…");
-            String raw = client.transcribe(wav, speechHints);
+            DictateNotifications.info(project, I18n.text("recording.transcribe"));
+            String raw = client.transcribe(wav, speechHints, SpeechLanguages.selectedCodes());
             String result = raw;
             try {
-                DictateNotifications.info(project, "Исправляю технические термины с контекстом проекта…");
+                DictateNotifications.info(project, I18n.text("recording.correct"));
                 result = client.correct(raw, context, CorrectionModel.selected());
             } catch (IOException | InterruptedException correctionError) {
                 if (correctionError instanceof InterruptedException) Thread.currentThread().interrupt();
-                DictateNotifications.warning(project, "Правка текста недоступна; использую исходную транскрипцию.");
+                DictateNotifications.warning(project, I18n.text("recording.fallback"));
             }
             SafePaste.deliver(project, result, expectedFocus);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            DictateNotifications.error(project, "Диктовка прервана.");
+            DictateNotifications.error(project, I18n.text("recording.interrupted"));
         } catch (IOException error) {
-            DictateNotifications.error(project, "Ошибка OpenAI: " + safeMessage(error));
+            DictateNotifications.error(project, I18n.text("recording.apiError", safeMessage(error)));
         }
     }
 

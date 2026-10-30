@@ -3,16 +3,16 @@
     <name>IDEA ChatGPT Dictate</name>
     <vendor>ilinic</vendor>
     <description><![CDATA[
-        Russian dictation into Codex with OpenAI speech recognition and project-aware technical term correction.
+        Multilingual dictation into Codex with OpenAI speech recognition and project-aware technical term correction.
         Press the hotkey to start or stop recording. Text is inserted at the active composer without sending it.
-        All configuration lives in one settings dialog, including the optional Codex session context.
+        All configuration lives in one settings dialog, including optional recent Codex context when reliably identifiable.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <notificationGroup id="IDEA ChatGPT Dictate" displayType="BALLOON" isLogByDefault="true"/>
+        <notificationGroup id="IDEA ChatGPT Dictate" displayType="NONE" isLogByDefault="true"/>
         <projectService serviceImplementation="nz.ilinic.ideadictate.VoiceDictationService"/>
         <postStartupActivity implementation="nz.ilinic.ideadictate.DictationHotkeyStartup"/>
     </extensions>
@@ -24,12 +24,12 @@
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="nz.ilinic.ideadictate.ToggleRecording"
                     class="nz.ilinic.ideadictate.ToggleRecordingAction"
-                    text="Начать / остановить диктовку"
-                    description="Start or stop a recording and insert OpenAI-recognized Russian text into the focused chat prompt"/>
+                    text="Start / Stop Dictation"
+                    description="Start or stop recording and insert OpenAI-recognized text into the focused chat prompt"/>
             <action id="nz.ilinic.ideadictate.OpenSettings"
                     class="nz.ilinic.ideadictate.OpenSettingsAction"
-                    text="Настройки…"
-                    description="API-ключ, F1–F12, модель исправления текста и история Codex"/>
+                    text="Settings..."
+                    description="API key, F1–F12, recognition languages, correction model and optional context"/>
         </group>
     </actions>
 </idea-plugin>

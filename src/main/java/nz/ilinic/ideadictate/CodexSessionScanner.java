@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 /** Finds plausible recent Codex JSONL sessions, without using internal/private chat APIs. */
@@ -35,7 +36,7 @@ final class CodexSessionScanner {
 
     private CodexSessionScanner() { }
 
-    /** Candidates only. A candidate must be explicitly pinned by the user before supplying history to OpenAI. */
+    /** Diagnostic candidates; a matching directory alone never identifies the current chat. */
     static List<Candidate> recentMatching(String projectBasePath) {
         List<Candidate> matches = new ArrayList<>();
         for (Path path : findRecentPaths()) {
@@ -48,19 +49,46 @@ final class CodexSessionScanner {
     }
 
     static String excerptFromPinned(Path path) {
+        return excerpt(path, 8);
+    }
+
+    static String excerpt(Path path, int maxTurns) {
         if (!Files.isRegularFile(path)) return "";
         List<String> turns = new ArrayList<>();
         for (JsonObject event : lastEvents(path)) {
             String user = userMessage(event);
             String assistant = assistantMessage(event);
-            String role = user != null ? "Пользователь: " : "Ассистент: ";
+            String role = user != null ? "User: " : "Assistant: ";
             String content = user != null ? user : assistant;
             if (content == null || content.isBlank()) continue;
-            String turn = role + preview(content, 380);
+            String turn = role + preview(content, 320);
             if (turns.isEmpty() || !turns.get(turns.size() - 1).equals(turn)) turns.add(turn);
         }
-        int first = Math.max(0, turns.size() - 8);
+        int first = Math.max(0, turns.size() - maxTurns);
         return String.join("\n", turns.subList(first, turns.size()));
+    }
+
+    /**
+     * Only use history when the Codex session ID is actually available to the IDE process.
+     * The ID is normally private to the Codex agent process, so an unknown ID means no history.
+     */
+    static String currentContext(String projectBasePath, int turns) {
+        String id = System.getProperty("CODEX_THREAD_ID");
+        if (id == null || id.isBlank()) id = System.getenv("CODEX_THREAD_ID");
+        if (id == null || id.isBlank()) id = System.getenv("CODEX_SESSION_ID");
+        if (id == null || id.isBlank()) return "";
+        try {
+            UUID.fromString(id);
+        } catch (IllegalArgumentException invalid) {
+            return "";
+        }
+        for (Path path : findRecentPaths()) {
+            Session session = inspectHeader(path);
+            if (id.equalsIgnoreCase(session.id) && matchesProject(projectBasePath, session.cwd)) {
+                return excerpt(path, turns);
+            }
+        }
+        return "";
     }
 
     static boolean belongsToProject(Path path, String basePath) {
@@ -161,6 +189,11 @@ final class CodexSessionScanner {
     }
 
     private static Session inspect(Path path) {
+        Session header = inspectHeader(path);
+        return new Session(path, header.modifiedMillis, header.id, header.cwd, lastUserMessage(path));
+    }
+
+    private static Session inspectHeader(Path path) {
         String id = null;
         String cwd = null;
         try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
@@ -178,7 +211,7 @@ final class CodexSessionScanner {
         } catch (IOException | SecurityException ignored) {
             // A missing metadata record is reflected as 'not found' in the report.
         }
-        return new Session(path, modifiedMillis(path), id, cwd, lastUserMessage(path));
+        return new Session(path, modifiedMillis(path), id, cwd, null);
     }
 
     private static String lastUserMessage(Path path) {
@@ -328,8 +361,8 @@ final class CodexSessionScanner {
     record Candidate(Path path, String id, String lastUser, long modifiedMillis) {
         String display() {
             return TIME_FORMAT.format(Instant.ofEpochMilli(modifiedMillis))
-                    + " | " + (id == null ? "unknown" : id)
-                    + " | " + (lastUser == null ? "нет пользовательского текста" : preview(lastUser, 85));
+                    + " | " + (id == null ? I18n.text("session.unknown") : id)
+                    + " | " + (lastUser == null ? I18n.text("session.noText") : preview(lastUser, 85));
         }
     }
 }

@@ -4,10 +4,10 @@ import com.intellij.ide.util.PropertiesComponent;
 
 /** Models used only for correcting the transcribed text, not for speech recognition. */
 enum CorrectionModel {
-    LUNA("gpt-6-luna", "GPT-6 Luna — минимальная стоимость (по умолчанию)", "none"),
-    TERRA("gpt-6.1-terra", "GPT-6.1 Terra — повышенное качество", "none"),
-    SOL("gpt-6.1-sol", "GPT-6.1 Sol — сложные случаи", "low"),
-    ASTRA("gpt-6-astra", "GPT-6 Astra — максимальное качество", "low");
+    LUNA("gpt-6-luna", "model.luna", "none"),
+    TERRA("gpt-6.1-terra", "model.terra", "none"),
+    SOL("gpt-6.1-sol", "model.sol", "low"),
+    ASTRA("gpt-6-astra", "model.astra", "low");
 
     private static final String SETTINGS_KEY = "nz.ilinic.ideadictate.correctionModel";
 
@@ -35,6 +35,6 @@ enum CorrectionModel {
 
     @Override
     public String toString() {
-        return label;
+        return I18n.text(label);
     }
 }

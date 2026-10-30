@@ -26,15 +26,13 @@ final class SafePaste {
             CopyPasteManager.getInstance().setContents(new StringSelection(text));
 
             if (expectedFocus == null || currentFocus() != expectedFocus) {
-                DictateNotifications.warning(project, "Диктовка готова и скопирована в буфер. "
-                        + "Фокус ввода изменился — нажми Ctrl+V в чате Codex.");
+                DictateNotifications.warning(project, I18n.text("paste.focusChanged"));
                 return;
             }
 
             AppExecutorUtil.getAppScheduledExecutorService().schedule(() -> {
                 if (currentFocus() != expectedFocus || project.isDisposed()) {
-                    DictateNotifications.warning(project, "Текст в буфере обмена. "
-                            + "Поставь курсор в чат Codex и нажми Ctrl+V.");
+                    DictateNotifications.warning(project, I18n.text("paste.focusLost"));
                     return;
                 }
                 try {
@@ -49,9 +47,9 @@ final class SafePaste {
                     } finally {
                         robot.keyRelease(modifier);
                     }
+                    DictateNotifications.info(project, I18n.text("recording.ready"));
                 } catch (Exception error) {
-                    DictateNotifications.warning(project, "Автовставка недоступна. "
-                            + "Текст в буфере обмена; вставь его вручную Ctrl+V.");
+                    DictateNotifications.warning(project, I18n.text("paste.unavailable"));
                 }
             }, 130, TimeUnit.MILLISECONDS);
         });

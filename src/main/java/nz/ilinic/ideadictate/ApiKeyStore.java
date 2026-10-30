@@ -9,8 +9,12 @@ final class ApiKeyStore {
 
     private ApiKeyStore() { }
 
+    static String getSaved() {
+        return PasswordSafe.getInstance().getPassword(ATTRIBUTES);
+    }
+
     static String get() {
-        String configured = PasswordSafe.getInstance().getPassword(ATTRIBUTES);
+        String configured = getSaved();
         if (configured != null && !configured.isBlank()) return configured.trim();
         String environment = System.getenv("OPENAI_API_KEY");
         return environment == null || environment.isBlank() ? null : environment.trim();
