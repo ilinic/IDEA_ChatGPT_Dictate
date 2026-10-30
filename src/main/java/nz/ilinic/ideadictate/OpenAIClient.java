@@ -22,7 +22,6 @@ import java.util.regex.Pattern;
 /** Minimal OpenAI HTTP client; sends only explicitly requested dictation audio/context. */
 final class OpenAIClient {
     static final String TRANSCRIBE_MODEL = "gpt-transcribe";
-    static final String CORRECTION_MODEL = "gpt-6-luna";
     private static final URI TRANSCRIPTIONS = URI.create("https://api.openai.com/v1/audio/transcriptions");
     private static final URI RESPONSES = URI.create("https://api.openai.com/v1/responses");
 
@@ -64,13 +63,13 @@ final class OpenAIClient {
         return result.trim();
     }
 
-    String correct(String transcript, String context) throws IOException, InterruptedException {
+    String correct(String transcript, String context, CorrectionModel model) throws IOException, InterruptedException {
         JsonObject json = new JsonObject();
-        json.addProperty("model", CORRECTION_MODEL);
+        json.addProperty("model", model.id);
         json.addProperty("store", false);
         json.addProperty("max_output_tokens", 2048);
         JsonObject reasoning = new JsonObject();
-        reasoning.addProperty("effort", "none");
+        reasoning.addProperty("effort", model.reasoningEffort);
         json.add("reasoning", reasoning);
         json.addProperty("instructions", "Ты корректируешь текст русской диктовки программиста. "
                 + "Верни ТОЛЬКО исправленный текст пользовательского запроса, без пояснений и кавычек. "

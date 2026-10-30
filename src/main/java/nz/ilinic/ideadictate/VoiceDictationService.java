@@ -57,7 +57,7 @@ public final class VoiceDictationService implements Disposable {
             if (apiKey == null) {
                 recording.set(false);
                 busy.set(false);
-                DictateNotifications.warning(project, "Сначала укажи OpenAI API key в меню Tools → IDEA ChatGPT Dictate.");
+                DictateNotifications.warning(project, "Сначала укажи API-ключ: Tools → IDEA ChatGPT Dictate → Настройки…");
                 return;
             }
             if (!recording.get()) {
@@ -149,7 +149,7 @@ public final class VoiceDictationService implements Disposable {
             String result = raw;
             try {
                 DictateNotifications.info(project, "Исправляю технические термины с контекстом проекта…");
-                result = client.correct(raw, context);
+                result = client.correct(raw, context, CorrectionModel.selected());
             } catch (IOException | InterruptedException correctionError) {
                 if (correctionError instanceof InterruptedException) Thread.currentThread().interrupt();
                 DictateNotifications.warning(project, "Правка текста недоступна; использую исходную транскрипцию.");

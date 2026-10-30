@@ -5,7 +5,7 @@
     <description><![CDATA[
         Russian dictation into Codex with OpenAI speech recognition and project-aware technical term correction.
         Press the hotkey to start or stop recording. Text is inserted at the active composer without sending it.
-        The plugin includes diagnostic commands and optional explicit Codex session binding.
+        All configuration lives in one settings dialog, including the optional Codex session context.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -24,31 +24,12 @@
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <action id="nz.ilinic.ideadictate.ToggleRecording"
                     class="nz.ilinic.ideadictate.ToggleRecordingAction"
-                    text="Start / Stop OpenAI Dictation"
+                    text="Начать / остановить диктовку"
                     description="Start or stop a recording and insert OpenAI-recognized Russian text into the focused chat prompt"/>
-            <action id="nz.ilinic.ideadictate.ChooseHotkey"
-                    class="nz.ilinic.ideadictate.ChooseDictationHotkeyAction"
-                    text="Choose Dictation Key (F1–F12)"
-                    description="Choose a single F1–F12 key for start and stop"/>
-            <action id="nz.ilinic.ideadictate.ConfigureOpenAI"
-                    class="nz.ilinic.ideadictate.ConfigureOpenAIAction"
-                    text="Configure OpenAI API Key"
-                    description="Store the OpenAI API key in IntelliJ Password Safe"/>
-            <action id="nz.ilinic.ideadictate.PinConversation"
-                    class="nz.ilinic.ideadictate.PinConversationAction"
-                    text="Choose Codex Conversation for Context"
-                    description="Explicitly select which local Codex history may be included in dictation correction"/>
-            <separator/>
-            <action id="nz.ilinic.ideadictate.InspectContext"
-                    class="nz.ilinic.ideadictate.ContextDiagnosticsAction"
-                    text="Inspect IDE and Codex Context"
-                    description="Show editor PSI context and recent local Codex session candidates"/>
-            <action id="nz.ilinic.ideadictate.InsertMarker"
-                    class="nz.ilinic.ideadictate.InsertTestTextAction"
-                    text="Insert Test Marker at Caret"
-                    description="Paste a harmless marker at the currently focused text cursor (never sends a message)">
-                <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift M"/>
-            </action>
+            <action id="nz.ilinic.ideadictate.OpenSettings"
+                    class="nz.ilinic.ideadictate.OpenSettingsAction"
+                    text="Настройки…"
+                    description="API-ключ, F1–F12, модель исправления текста и история Codex"/>
         </group>
     </actions>
 </idea-plugin>
