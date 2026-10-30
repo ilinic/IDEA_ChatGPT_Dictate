@@ -5,24 +5,18 @@ import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.concurrency.AppExecutorUtil;
 
-import java.awt.Component;
-import java.awt.KeyboardFocusManager;
 import java.awt.Robot;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
-/** Delivers dictation to the original focused input, including terminal-based Codex chats. */
+/** Pastes dictation into whichever input is focused when delivery completes. */
 final class SafePaste {
     private SafePaste() { }
 
-    static Component currentFocus() {
-        return KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-    }
-
-    static void deliver(Project project, String text, Component expectedFocus,
-                        boolean submit, BooleanSupplier active, Runnable completed) {
+    static void deliver(Project project, String text, boolean submit,
+                        BooleanSupplier active, Runnable completed) {
         ApplicationManager.getApplication().invokeLater(() -> {
             if (project.isDisposed() || !active.getAsBoolean()) {
                 completed.run();
@@ -30,20 +24,9 @@ final class SafePaste {
             }
             CopyPasteManager.getInstance().setContents(new StringSelection(text));
 
-            if (expectedFocus == null || currentFocus() != expectedFocus) {
-                DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
-                DictateNotifications.warning(project, I18n.text("paste.focusChanged"));
-                completed.run();
-                return;
-            }
             AppExecutorUtil.getAppScheduledExecutorService().schedule(() -> {
                 try {
                     if (!active.getAsBoolean() || project.isDisposed()) return;
-                    if (currentFocus() != expectedFocus) {
-                        DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
-                        DictateNotifications.warning(project, I18n.text("paste.focusLost"));
-                        return;
-                    }
                     Robot robot = new Robot();
                     robot.setAutoDelay(30);
                     int modifier = System.getProperty("os.name", "").toLowerCase().contains("mac")
@@ -59,11 +42,6 @@ final class SafePaste {
                         // Wait until the composer applies Ctrl+V before pressing Enter.
                         robot.delay(160);
                         if (!active.getAsBoolean()) return;
-                        if (currentFocus() != expectedFocus) {
-                            DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
-                            DictateNotifications.warning(project, I18n.text("paste.sendFocusLost"));
-                            return;
-                        }
                         robot.keyPress(KeyEvent.VK_ENTER);
                         robot.keyRelease(KeyEvent.VK_ENTER);
                         DictateNotifications.stage(project, DictateNotifications.Stage.DONE);

@@ -19,7 +19,7 @@ IDEA ChatGPT Dictate **1.0** is a lightweight IntelliJ IDEA plugin that turns sp
 - **One localized settings window.** API key, keyboard shortcuts, recognition languages, correction model and optional context are configured together. Russian and English interfaces follow the IDE UI locale.
 - **Persistent IDE status indicator.** A dedicated `ChatGPT Dictate` status-bar widget shows recording, transcription, correction, insertion, sending, completion, cancellation or error without intrusive popups.
 - **Quiet status updates.** Recording and processing progress is shown in IntelliJ IDEA's status bar, not in intrusive balloons.
-- **Safe insertion.** When the original input loses focus, transcription goes to the clipboard instead of being pasted into another component. Automatic submission is also prevented if focus changes. Terminal-based Codex chats are supported; the second shortcut deliberately sends Enter to the original focused input.
+- **Direct insertion.** The transcript is pasted into whichever input has focus when processing finishes. No component-type or focus-change checks block insertion. The second shortcut also presses Enter, so keep the intended chat composer focused.
 
 ## Quick start
 
@@ -82,7 +82,7 @@ flowchart LR
 1. Java Sound captures mono audio into an in-memory WAV file.
 2. `gpt-transcribe` recognizes speech in the selected languages, with project-specific technical hints.
 3. The selected GPT text model corrects obvious transcription errors, punctuation and identifiers. It is instructed **not** to answer or expand the prompt.
-4. The result is pasted into the original focused component; in Send mode, the plugin additionally presses Enter. If focus changed, the plugin puts the text on the clipboard and never submits automatically.
+4. The result is pasted into the currently focused component; in Send mode, the plugin additionally presses Enter. Focus is not restricted to a particular editor or chat window.
 
 If correction fails while speech recognition succeeded, the **raw transcript** is retained rather than discarded.
 
@@ -120,7 +120,7 @@ GitHub Actions builds and uploads an installable ZIP on every push to `main`. So
 
 - **No microphone input:** check the default Windows recording device and microphone privacy permissions for IntelliJ IDEA.
 - **No transcription:** configure an OpenAI Platform API key and check API billing and network access.
-- **The text appeared only on the clipboard:** put the cursor back into the Codex prompt and press `Ctrl+V`. The focus guard prevents accidental insertion into another editor.
+- **The text appeared only on the clipboard:** focus the intended chat composer and press `Ctrl+V`. The plugin does not verify the focused component before simulated paste.
 - **F-key conflicts:** record a different F1–F12 key in either field; IntelliJ warns before replacing a conflicting binding. The two shortcuts must differ. Escape is permanently reserved for cancellation.
 - **Wrong project terms:** open the relevant source file. The plugin uses its Java class/method and source selection context even if the current Codex chat cannot be identified.
 

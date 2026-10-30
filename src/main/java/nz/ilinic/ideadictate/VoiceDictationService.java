@@ -15,7 +15,6 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.TargetDataLine;
-import java.awt.Component;
 import java.awt.KeyboardFocusManager;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
@@ -75,8 +74,6 @@ public final class VoiceDictationService implements Disposable {
         cancelled = false;
         sendWhenDone = false;
         DictateNotifications.stage(project, DictateNotifications.Stage.STARTING);
-        // Snapshot the original prompt focus, preventing accidental paste into source code later.
-        Component expectedFocus = SafePaste.currentFocus();
         String editor;
         try {
             editor = ReadAction.compute(() -> EditorContext.capture(project));
@@ -100,7 +97,7 @@ public final class VoiceDictationService implements Disposable {
                     return;
                 }
                 DictateNotifications.info(project, "🎙 " + I18n.text("recording.start"));
-                performCaptureAndTranscription(apiKey, contextSnapshot, expectedFocus);
+                performCaptureAndTranscription(apiKey, contextSnapshot);
             } catch (RuntimeException error) {
                 if (!cancelled) {
                     LOG.warn("Unexpected error while recording or transcribing", error);
@@ -153,7 +150,7 @@ public final class VoiceDictationService implements Disposable {
         }
     }
 
-    private void performCaptureAndTranscription(String apiKey, String editorContext, Component expectedFocus) {
+    private void performCaptureAndTranscription(String apiKey, String editorContext) {
         ByteArrayOutputStream pcm = new ByteArrayOutputStream();
         TargetDataLine line = null;
         AudioFormat format = null;
@@ -249,7 +246,7 @@ public final class VoiceDictationService implements Disposable {
             pendingDelivery.set(true);
             DictateNotifications.stage(project, sendWhenDone
                     ? DictateNotifications.Stage.SENDING : DictateNotifications.Stage.INSERTING);
-            SafePaste.deliver(project, result, expectedFocus, sendWhenDone, () -> !cancelled,
+            SafePaste.deliver(project, result, sendWhenDone, () -> !cancelled,
                     () -> pendingDelivery.set(false));
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
