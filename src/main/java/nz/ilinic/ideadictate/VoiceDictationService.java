@@ -75,7 +75,14 @@ public final class VoiceDictationService implements Disposable {
         DictateNotifications.stage(project, DictateNotifications.Stage.STARTING);
         // Snapshot the original prompt focus, preventing accidental paste into source code later.
         Component expectedFocus = SafePaste.currentFocus();
-        String editor = ReadAction.compute(() -> EditorContext.capture(project));
+        String editor;
+        try {
+            editor = ReadAction.compute(() -> EditorContext.capture(project));
+        } catch (RuntimeException ignored) {
+            // PSI context is optional; it must never prevent microphone recording.
+            editor = "";
+        }
+        String contextSnapshot = editor;
         recording.set(true);
         AppExecutorUtil.getAppExecutorService().execute(() -> {
             activeThread = Thread.currentThread();
@@ -90,8 +97,14 @@ public final class VoiceDictationService implements Disposable {
                     return;
                 }
                 DictateNotifications.info(project, "🎙 " + I18n.text("recording.start"));
-                performCaptureAndTranscription(apiKey, editor, expectedFocus);
+                performCaptureAndTranscription(apiKey, contextSnapshot, expectedFocus);
+            } catch (RuntimeException error) {
+                if (!cancelled) {
+                    DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
+                    DictateNotifications.error(project, I18n.text("recording.unexpected", safeMessage(error)));
+                }
             } finally {
+                recording.set(false);
                 activeThread = null;
                 busy.set(false);
             }
