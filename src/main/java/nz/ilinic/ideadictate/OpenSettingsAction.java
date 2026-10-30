@@ -32,13 +32,13 @@ import java.util.Objects;
 public final class OpenSettingsAction extends AnAction implements DumbAware {
     @Override
     public void update(@NotNull AnActionEvent event) {
-        event.getPresentation().setEnabled(event.getProject() != null);
+        event.getPresentation().setEnabled(DictateProjectResolver.hasOpenProject(event));
         event.getPresentation().setText(I18n.text("menu.settings"));
     }
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
-        Project project = event.getProject();
+        Project project = DictateProjectResolver.resolve(event);
         if (project == null) return;
 
         // IntelliJ Password Safe may prompt or block. Never read it on the UI thread.

@@ -3,6 +3,7 @@ package nz.ilinic.ideadictate;
 import com.intellij.ide.IdeEventQueue;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ReadAction;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.WindowManager;
 import com.intellij.util.concurrency.AppExecutorUtil;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** One active recording per IDE project. WAV data stays in memory until an explicit transcription request. */
 public final class VoiceDictationService implements Disposable {
+    private static final Logger LOG = Logger.getInstance(VoiceDictationService.class);
     private static final int MAX_RECORD_SECONDS = 120;
     private static final int MIN_RECORD_MILLIS = 250;
 
@@ -80,6 +82,7 @@ public final class VoiceDictationService implements Disposable {
             editor = ReadAction.compute(() -> EditorContext.capture(project));
         } catch (RuntimeException ignored) {
             // PSI context is optional; it must never prevent microphone recording.
+            LOG.warn("Source context unavailable; proceeding without it", ignored);
             editor = "";
         }
         String contextSnapshot = editor;
@@ -100,6 +103,7 @@ public final class VoiceDictationService implements Disposable {
                 performCaptureAndTranscription(apiKey, contextSnapshot, expectedFocus);
             } catch (RuntimeException error) {
                 if (!cancelled) {
+                    LOG.warn("Unexpected error while recording or transcribing", error);
                     DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
                     DictateNotifications.error(project, I18n.text("recording.unexpected", safeMessage(error)));
                 }

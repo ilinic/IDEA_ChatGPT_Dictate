@@ -12,14 +12,18 @@ public final class FinishAndSendAction extends AnAction implements DumbAware {
     private static final Logger LOG = Logger.getInstance(FinishAndSendAction.class);
     @Override
     public void update(@NotNull AnActionEvent event) {
-        event.getPresentation().setEnabled(event.getProject() != null);
+        event.getPresentation().setEnabled(DictateProjectResolver.hasOpenProject(event));
         event.getPresentation().setText(I18n.text("menu.send"));
     }
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
-        Project project = event.getProject();
-        if (project == null) return;
+        Project project = DictateProjectResolver.resolve(event);
+        if (project == null) {
+            LOG.warn("Finish-and-send action invoked without an available project");
+            return;
+        }
+        LOG.info("Finish-and-send dictation action invoked for project " + project.getName());
         try {
             project.getService(VoiceDictationService.class).finishAndSend();
         } catch (RuntimeException | LinkageError error) {
