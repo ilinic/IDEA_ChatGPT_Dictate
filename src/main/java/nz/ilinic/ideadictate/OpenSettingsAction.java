@@ -1,5 +1,6 @@
 package nz.ilinic.ideadictate;
 
+import com.intellij.ide.IdeEventQueue;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.progress.ProgressIndicator;
@@ -26,6 +27,8 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
+import java.awt.event.KeyEvent;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -66,7 +69,8 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
         private final Project project;
         private final String originalKey;
         private final JPasswordField apiKey = new JPasswordField(34);
-        private final JComboBox<String> hotkey = new JComboBox<>();
+        private final ShortcutCaptureField hotkey = new ShortcutCaptureField();
+        private final ShortcutCaptureField sendHotkey = new ShortcutCaptureField();
         private final JComboBox<CorrectionModel> model = new JComboBox<>(CorrectionModel.values());
         private final JList<SpeechLanguages.Language> languages = new JList<>(SpeechLanguages.Language.values());
         private final JCheckBox context = new JCheckBox(I18n.text("settings.context"));
@@ -78,9 +82,8 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
             originalKey = savedKey == null ? "" : savedKey;
             apiKey.setText(originalKey);
 
-            String savedHotkey = DictationKeymap.saved();
-            for (int i = 1; i <= 12; i++) hotkey.addItem("F" + i);
-            hotkey.setSelectedItem(savedHotkey.isBlank() ? "F12" : savedHotkey);
+            hotkey.setShortcut(DictationKeymap.savedStart().isBlank() ? "F12" : DictationKeymap.savedStart());
+            sendHotkey.setShortcut(DictationKeymap.savedSend());
             model.setSelectedItem(CorrectionModel.selected());
 
             languages.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
@@ -100,6 +103,14 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
             setOKButtonText(I18n.text("settings.save"));
             setCancelButtonText(I18n.text("settings.cancel"));
             init();
+            // Intercept function keys before the IDE keymap dispatches them as actions.
+            IdeEventQueue.getInstance().addDispatcher(event -> {
+                if (!(event instanceof KeyEvent keyEvent)) return false;
+                Object focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+                if (focus == hotkey) return hotkey.capture(keyEvent);
+                if (focus == sendHotkey) return sendHotkey.capture(keyEvent);
+                return false;
+            }, getDisposable());
         }
 
         @Override
@@ -111,17 +122,19 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
             addRow(panel, 1, "", new JLabel(I18n.text("settings.key.note")));
             addRow(panel, 2, "", new JLabel(I18n.text("settings.key.env")));
             addRow(panel, 3, I18n.text("settings.hotkey"), hotkey);
-            addRow(panel, 4, I18n.text("settings.model"), model);
+            addRow(panel, 4, I18n.text("settings.send.hotkey"), sendHotkey);
+            addRow(panel, 5, "", new JLabel(I18n.text("settings.shortcut.tip")));
+            addRow(panel, 6, I18n.text("settings.model"), model);
 
             JScrollPane languageList = new JScrollPane(languages);
             languageList.setPreferredSize(new Dimension(300, 102));
-            addRow(panel, 5, I18n.text("settings.languages"), languageList);
-            addRow(panel, 6, "", new JLabel(I18n.text("settings.languages.help")));
+            addRow(panel, 7, I18n.text("settings.languages"), languageList);
+            addRow(panel, 8, "", new JLabel(I18n.text("settings.languages.help")));
 
-            addRow(panel, 7, "", context);
-            addRow(panel, 8, I18n.text("settings.context.length"), contextTurns);
-            addRow(panel, 9, "", new JLabel(I18n.text("settings.context.note")));
-            addRow(panel, 10, "", new JLabel(I18n.text("settings.speech")));
+            addRow(panel, 9, "", context);
+            addRow(panel, 10, I18n.text("settings.context.length"), contextTurns);
+            addRow(panel, 11, "", new JLabel(I18n.text("settings.context.note")));
+            addRow(panel, 12, "", new JLabel(I18n.text("settings.speech")));
             return panel;
         }
 
@@ -144,9 +157,25 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
 
         @Override
         protected void doOKAction() {
-            String key = (String) hotkey.getSelectedItem();
-            if (key != null && !key.equals(DictationKeymap.saved())) {
-                String[] conflicts = DictationKeymap.conflicts(key);
+            String start = hotkey.getShortcut();
+            String send = sendHotkey.getShortcut();
+            if (start.isBlank()) {
+                Messages.showErrorDialog(project, I18n.text("settings.shortcut.required"),
+                        I18n.text("settings.conflict.title"));
+                return;
+            }
+            if (!send.isBlank() && start.equals(send)) {
+                Messages.showErrorDialog(project, I18n.text("settings.shortcut.duplicate"),
+                        I18n.text("settings.conflict.title"));
+                return;
+            }
+            for (String[] entry : new String[][] {
+                    {start, DictationKeymap.savedStart(), DictationKeymap.START_ACTION},
+                    {send, DictationKeymap.savedSend(), DictationKeymap.SEND_ACTION}
+            }) {
+                String key = entry[0];
+                if (key.isBlank() || key.equals(entry[1])) continue;
+                String[] conflicts = DictationKeymap.conflicts(key, entry[2]);
                 if (conflicts.length > 0) {
                     String example = String.join(", ", Arrays.copyOf(conflicts, Math.min(5, conflicts.length)));
                     int answer = Messages.showYesNoDialog(project,
@@ -159,8 +188,7 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
         }
 
         void saveSettings() {
-            String key = (String) hotkey.getSelectedItem();
-            if (key != null) DictationKeymap.assign(key);
+            DictationKeymap.assign(hotkey.getShortcut(), sendHotkey.getShortcut());
             CorrectionModel selectedModel = (CorrectionModel) model.getSelectedItem();
             if (selectedModel != null) CorrectionModel.save(selectedModel);
 

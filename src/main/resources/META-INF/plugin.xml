@@ -4,7 +4,7 @@
     <vendor>ilinic</vendor>
     <description><![CDATA[
         Multilingual dictation into Codex with OpenAI speech recognition and project-aware technical term correction.
-        Press the hotkey to start or stop recording. Text is inserted at the active composer without sending it.
+        Press one F-key to start/stop dictation and keep text in the composer, or a second F-key to stop and submit. Escape cancels.
         All configuration lives in one settings dialog, including optional recent Codex context when reliably identifiable.
     ]]></description>
 
@@ -26,10 +26,14 @@
                     class="nz.ilinic.ideadictate.ToggleRecordingAction"
                     text="Start / Stop Dictation"
                     description="Start or stop recording and insert OpenAI-recognized text into the focused chat prompt"/>
+            <action id="nz.ilinic.ideadictate.FinishAndSend"
+                    class="nz.ilinic.ideadictate.FinishAndSendAction"
+                    text="Stop Dictation and Send"
+                    description="Stop the current dictation, insert the corrected text and send the chat message"/>
             <action id="nz.ilinic.ideadictate.OpenSettings"
                     class="nz.ilinic.ideadictate.OpenSettingsAction"
                     text="Settings..."
-                    description="API key, F1–F12, recognition languages, correction model and optional context"/>
+                    description="API key, two recorded F-key shortcuts, recognition languages, correction model and optional context"/>
         </group>
     </actions>
 </idea-plugin>
