@@ -19,7 +19,7 @@ IDEA ChatGPT Dictate **1.0** is a lightweight IntelliJ IDEA plugin that turns sp
 - **One localized settings window.** API key, keyboard shortcuts, recognition languages, correction model and optional context are configured together. Russian and English interfaces follow the IDE UI locale.
 - **Persistent IDE status indicator.** A dedicated `ChatGPT Dictate` status-bar widget shows recording, transcription, correction, insertion, sending, completion, cancellation or error without intrusive popups.
 - **Quiet status updates.** Recording and processing progress is shown in IntelliJ IDEA's status bar, not in intrusive balloons.
-- **Safe insertion.** When the original input loses focus, transcription goes to the clipboard instead of being pasted into source code. Automatic submission is also prevented if focus changes.
+- **Safe insertion.** When the original input loses focus, transcription goes to the clipboard instead of being pasted into another component. Automatic submission is also prevented if focus changes. Terminal-based Codex chats are supported; the second shortcut deliberately sends Enter to the original focused input.
 
 ## Quick start
 

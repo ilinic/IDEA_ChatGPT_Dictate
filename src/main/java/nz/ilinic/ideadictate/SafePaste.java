@@ -13,7 +13,7 @@ import java.awt.event.KeyEvent;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
-/** Avoids pasting into the source editor if the user changes focus during the API call. */
+/** Delivers dictation to the original focused input, including terminal-based Codex chats. */
 final class SafePaste {
     private SafePaste() { }
 
@@ -36,13 +36,6 @@ final class SafePaste {
                 completed.run();
                 return;
             }
-            if (submit && isEditorOrTerminal(expectedFocus)) {
-                DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
-                DictateNotifications.warning(project, I18n.text("paste.sendUnsupported"));
-                completed.run();
-                return;
-            }
-
             AppExecutorUtil.getAppScheduledExecutorService().schedule(() -> {
                 try {
                     if (!active.getAsBoolean() || project.isDisposed()) return;
@@ -87,14 +80,6 @@ final class SafePaste {
                 }
             }, 130, TimeUnit.MILLISECONDS);
         });
-    }
-
-    private static boolean isEditorOrTerminal(Component focus) {
-        for (Component part = focus; part != null; part = part.getParent()) {
-            String type = part.getClass().getName().toLowerCase(java.util.Locale.ROOT);
-            if (type.contains("terminal") || type.contains("editorcomponentimpl")) return true;
-        }
-        return false;
     }
 }
 
