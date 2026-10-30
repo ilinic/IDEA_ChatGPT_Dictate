@@ -46,7 +46,7 @@ The diagnostics list all project-matching sessions but **do not prove which chat
 ## Build requirements
 
 - Gradle Wrapper **9.1.0** included (`.\gradlew.bat`).
-- Java source target **JDK 21**. Foojay toolchain resolver can download JDK 21 automatically if Gradle is already running on Java 17+ and has network access.
+- Java source target **JDK 21**. Install JDK 21 and set `JAVA_HOME` to the JDK root directory (not its `bin` subdirectory).
 - IntelliJ Platform Gradle Plugin **2.19.0** and target IntelliJ IDEA **2025.3.3**, supporting build `253` and newer in the plugin descriptor. Newer versions still require practical compatibility testing.
 - The ZIP appears under `build/distributions/` after `buildPlugin`.
 
