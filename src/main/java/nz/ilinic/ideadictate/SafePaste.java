@@ -31,11 +31,13 @@ final class SafePaste {
             CopyPasteManager.getInstance().setContents(new StringSelection(text));
 
             if (expectedFocus == null || currentFocus() != expectedFocus) {
+                DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
                 DictateNotifications.warning(project, I18n.text("paste.focusChanged"));
                 completed.run();
                 return;
             }
             if (submit && isEditorOrTerminal(expectedFocus)) {
+                DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
                 DictateNotifications.warning(project, I18n.text("paste.sendUnsupported"));
                 completed.run();
                 return;
@@ -45,6 +47,7 @@ final class SafePaste {
                 try {
                     if (!active.getAsBoolean() || project.isDisposed()) return;
                     if (currentFocus() != expectedFocus) {
+                        DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
                         DictateNotifications.warning(project, I18n.text("paste.focusLost"));
                         return;
                     }
@@ -64,16 +67,20 @@ final class SafePaste {
                         robot.delay(160);
                         if (!active.getAsBoolean()) return;
                         if (currentFocus() != expectedFocus) {
+                            DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
                             DictateNotifications.warning(project, I18n.text("paste.sendFocusLost"));
                             return;
                         }
                         robot.keyPress(KeyEvent.VK_ENTER);
                         robot.keyRelease(KeyEvent.VK_ENTER);
+                        DictateNotifications.stage(project, DictateNotifications.Stage.DONE);
                         DictateNotifications.info(project, I18n.text("recording.sent"));
                     } else {
+                        DictateNotifications.stage(project, DictateNotifications.Stage.DONE);
                         DictateNotifications.info(project, I18n.text("recording.ready"));
                     }
                 } catch (Exception error) {
+                    DictateNotifications.stage(project, DictateNotifications.Stage.CLIPBOARD);
                     DictateNotifications.warning(project, I18n.text("paste.unavailable"));
                 } finally {
                     completed.run();

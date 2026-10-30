@@ -17,20 +17,15 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
-import javax.swing.JScrollPane;
-import javax.swing.ListSelectionModel;
 import javax.swing.border.EmptyBorder;
-import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.KeyEvent;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 
 /** One settings dialog for the plugin, localized to IntelliJ's UI language. */
@@ -72,7 +67,7 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
         private final ShortcutCaptureField hotkey = new ShortcutCaptureField();
         private final ShortcutCaptureField sendHotkey = new ShortcutCaptureField();
         private final JComboBox<CorrectionModel> model = new JComboBox<>(CorrectionModel.values());
-        private final JList<SpeechLanguages.Language> languages = new JList<>(SpeechLanguages.Language.values());
+        private final LanguageMultiSelectField languages = new LanguageMultiSelectField();
         private final JCheckBox context = new JCheckBox(I18n.text("settings.context"));
         private final JComboBox<Integer> contextTurns = new JComboBox<>(new Integer[] {2, 4, 8, 16});
 
@@ -85,12 +80,6 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
             hotkey.setShortcut(DictationKeymap.savedStart().isBlank() ? "F12" : DictationKeymap.savedStart());
             sendHotkey.setShortcut(DictationKeymap.savedSend());
             model.setSelectedItem(CorrectionModel.selected());
-
-            languages.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-            languages.setVisibleRowCount(4);
-            List<SpeechLanguages.Language> selected = SpeechLanguages.selected();
-            int[] selectedIndices = selected.stream().mapToInt(language -> language.ordinal()).toArray();
-            languages.setSelectedIndices(selectedIndices);
 
             context.setSelected(SettingsPrefs.useCodexContext());
             contextTurns.setSelectedItem(SettingsPrefs.contextTurns());
@@ -126,9 +115,7 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
             addRow(panel, 5, "", new JLabel(I18n.text("settings.shortcut.tip")));
             addRow(panel, 6, I18n.text("settings.model"), model);
 
-            JScrollPane languageList = new JScrollPane(languages);
-            languageList.setPreferredSize(new Dimension(300, 102));
-            addRow(panel, 7, I18n.text("settings.languages"), languageList);
+            addRow(panel, 7, I18n.text("settings.languages"), languages);
             addRow(panel, 8, "", new JLabel(I18n.text("settings.languages.help")));
 
             addRow(panel, 9, "", context);
@@ -192,7 +179,7 @@ public final class OpenSettingsAction extends AnAction implements DumbAware {
             CorrectionModel selectedModel = (CorrectionModel) model.getSelectedItem();
             if (selectedModel != null) CorrectionModel.save(selectedModel);
 
-            SpeechLanguages.save(languages.getSelectedValuesList());
+            SpeechLanguages.save(languages.getSelectedLanguages());
             SettingsPrefs.useCodexContext(context.isSelected());
             Integer count = (Integer) contextTurns.getSelectedItem();
             if (count != null) SettingsPrefs.contextTurns(count);

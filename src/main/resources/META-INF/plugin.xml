@@ -14,6 +14,8 @@
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="IDEA ChatGPT Dictate" displayType="NONE" isLogByDefault="true"/>
         <projectService serviceImplementation="nz.ilinic.ideadictate.VoiceDictationService"/>
+        <statusBarWidgetFactory id="nz.ilinic.ideadictate.status"
+                                implementation="nz.ilinic.ideadictate.DictateStatusWidgetFactory"/>
         <postStartupActivity implementation="nz.ilinic.ideadictate.DictationHotkeyStartup"/>
     </extensions>
 

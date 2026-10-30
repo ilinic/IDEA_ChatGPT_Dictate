@@ -16,7 +16,8 @@ IDEA ChatGPT Dictate **1.0** is a lightweight IntelliJ IDEA plugin that turns sp
 - **Context-aware technical correction.** The correction step can see the project name, open file, caret position, Java class/method and a short selection preview.
 - **Optional Codex conversation context.** Include the last 2, 4, 8 or 16 messages only if the IDE can identify the precise Codex session ID. Matching project directories alone are never enough.
 - **Two configurable F1–F12 keys.** Press the first to start or stop and insert the text without sending. Press the second while recording to stop, insert and submit via Enter. **Escape cancels** recording or processing without inserting or sending anything.
-- **One localized settings window.** API key, keyboard shortcut, recognition languages, correction model and optional context are configured together. Russian and English interfaces follow the IDE UI locale.
+- **One localized settings window.** API key, keyboard shortcuts, recognition languages, correction model and optional context are configured together. Russian and English interfaces follow the IDE UI locale.
+- **Persistent IDE status indicator.** A dedicated `ChatGPT Dictate` status-bar widget shows recording, transcription, correction, insertion, sending, completion, cancellation or error without intrusive popups.
 - **Quiet status updates.** Recording and processing progress is shown in IntelliJ IDEA's status bar, not in intrusive balloons.
 - **Safe insertion.** When the original input loses focus, transcription goes to the clipboard instead of being pasted into source code. Automatic submission is also prevented if focus changes.
 
@@ -51,7 +52,7 @@ Open **Tools → IDEA ChatGPT Dictate → Settings...** (or **Настройки
 | **Start / stop (insert text)** | Click the shortcut capture field and press one **F1–F12** key. First press starts recording; next press finishes and leaves the text in the composer. |
 | **Stop and send** | Set a different **F1–F12** key; when pressed during recording, it finishes transcription and presses Enter to submit the result. Press Delete in this field to clear the assignment. |
 | **Text correction model** | Choose the model used to fix recognized text. **GPT-6 Luna** is the default low-cost option. |
-| **Recognition languages** | Multi-select from 14 languages, default Russian and English. Clear the selection for automatic language detection. |
+| **Recognition languages** | A compact drop-down with checkboxes for 14 languages, default Russian and English. Clear the selection for automatic language detection. |
 | **Use Codex chat context when available** | Opt in/out of recent chat history; enabled by default. The plugin must verify the exact session ID, otherwise it sends no chat history. |
 | **Recent context length** | Choose the most recent **2, 4, 8 or 16 messages**, default eight. |
 

@@ -72,6 +72,7 @@ public final class VoiceDictationService implements Disposable {
         }
         cancelled = false;
         sendWhenDone = false;
+        DictateNotifications.stage(project, DictateNotifications.Stage.STARTING);
         // Snapshot the original prompt focus, preventing accidental paste into source code later.
         Component expectedFocus = SafePaste.currentFocus();
         String editor = ReadAction.compute(() -> EditorContext.capture(project));
@@ -84,6 +85,7 @@ public final class VoiceDictationService implements Disposable {
                 if (cancelled) return;
                 if (apiKey == null) {
                     recording.set(false);
+                    DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
                     DictateNotifications.warning(project, I18n.text("recording.noKey"));
                     return;
                 }
@@ -110,6 +112,7 @@ public final class VoiceDictationService implements Disposable {
         sendWhenDone = submit;
         recording.set(false);
         stopMicrophone();
+        DictateNotifications.stage(project, DictateNotifications.Stage.TRANSCRIBING);
         DictateNotifications.info(project, I18n.text(submit ? "recording.stopSend" : "recording.stop"));
     }
 
@@ -121,6 +124,7 @@ public final class VoiceDictationService implements Disposable {
         stopMicrophone();
         Thread running = activeThread;
         if (running != null) running.interrupt();
+        DictateNotifications.stage(project, DictateNotifications.Stage.CANCELLED);
         DictateNotifications.info(project, I18n.text("recording.cancelled"));
     }
 
@@ -150,13 +154,18 @@ public final class VoiceDictationService implements Disposable {
                 }
             }
             if (line == null || format == null) {
+                DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
                 DictateNotifications.error(project, I18n.text("recording.noMic"));
                 return;
             }
 
             microphone = line;
-            if (!recording.get() || cancelled) return;
+            if (!recording.get() || cancelled) {
+                if (!cancelled) DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
+                return;
+            }
             line.start();
+            DictateNotifications.stage(project, DictateNotifications.Stage.RECORDING);
             byte[] buffer = new byte[8192];
             long start = System.nanoTime();
             int maxBytes = MAX_RECORD_SECONDS * (int) format.getSampleRate() * format.getFrameSize();
@@ -168,18 +177,21 @@ public final class VoiceDictationService implements Disposable {
             }
             recording.set(false);
             if (pcm.size() >= maxBytes && !cancelled) {
+                DictateNotifications.stage(project, DictateNotifications.Stage.TRANSCRIBING);
                 DictateNotifications.info(project, I18n.text("recording.maxTime"));
             }
 
             long durationMs = (System.nanoTime() - start) / 1_000_000;
             if (cancelled) return;
             if (durationMs < MIN_RECORD_MILLIS || pcm.size() < format.getFrameSize() * 100) {
+                DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
                 DictateNotifications.warning(project, I18n.text("recording.short"));
                 return;
             }
         } catch (RuntimeException error) {
             if (cancelled) return;
             if (recording.get() || pcm.size() == 0) {
+                DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
                 DictateNotifications.error(project, I18n.text("recording.error", safeMessage(error)));
                 return;
             }
@@ -203,11 +215,13 @@ public final class VoiceDictationService implements Disposable {
                     + history.substring(Math.max(0, history.length() - 1100)));
             OpenAIClient client = new OpenAIClient(apiKey);
 
+            DictateNotifications.stage(project, DictateNotifications.Stage.TRANSCRIBING);
             DictateNotifications.info(project, I18n.text("recording.transcribe"));
             String raw = client.transcribe(wav, speechHints, SpeechLanguages.selectedCodes());
             if (cancelled) return;
             String result = raw;
             try {
+                DictateNotifications.stage(project, DictateNotifications.Stage.CORRECTING);
                 DictateNotifications.info(project, I18n.text("recording.correct"));
                 result = client.correct(raw, context, CorrectionModel.selected());
             } catch (IOException | InterruptedException correctionError) {
@@ -216,13 +230,21 @@ public final class VoiceDictationService implements Disposable {
             }
             if (cancelled) return;
             pendingDelivery.set(true);
+            DictateNotifications.stage(project, sendWhenDone
+                    ? DictateNotifications.Stage.SENDING : DictateNotifications.Stage.INSERTING);
             SafePaste.deliver(project, result, expectedFocus, sendWhenDone, () -> !cancelled,
                     () -> pendingDelivery.set(false));
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            if (!cancelled) DictateNotifications.error(project, I18n.text("recording.interrupted"));
+            if (!cancelled) {
+                DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
+                DictateNotifications.error(project, I18n.text("recording.interrupted"));
+            }
         } catch (IOException error) {
-            if (!cancelled) DictateNotifications.error(project, I18n.text("recording.apiError", safeMessage(error)));
+            if (!cancelled) {
+                DictateNotifications.stage(project, DictateNotifications.Stage.ERROR);
+                DictateNotifications.error(project, I18n.text("recording.apiError", safeMessage(error)));
+            }
         }
     }
 
