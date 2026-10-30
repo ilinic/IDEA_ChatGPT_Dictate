@@ -1,21 +1,44 @@
 <idea-plugin>
     <id>nz.ilinic.ideadictate</id>
-    <name>IDEA ChatGPT Dictate — Feasibility Probe</name>
+    <name>IDEA ChatGPT Dictate</name>
     <vendor>ilinic</vendor>
     <description><![CDATA[
-        Diagnostic proof of concept for project-aware OpenAI dictation into an IDE AI chat composer.
-        Reports editor context, discovers recent local Codex sessions, and tests focused-field insertion.
-        Does not record audio, send data to a server, or send chat messages.
+        Russian dictation into Codex with OpenAI speech recognition and project-aware technical term correction.
+        Press the hotkey to start or stop recording. Text is inserted at the active composer without sending it.
+        The plugin includes diagnostic commands and optional explicit Codex session binding.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="IDEA ChatGPT Dictate" displayType="BALLOON" isLogByDefault="true"/>
+        <projectService serviceImplementation="nz.ilinic.ideadictate.VoiceDictationService"/>
+        <postStartupActivity implementation="nz.ilinic.ideadictate.DictationHotkeyStartup"/>
+    </extensions>
 
     <actions>
         <group id="nz.ilinic.ideadictate.ToolsGroup"
                text="IDEA ChatGPT Dictate"
                popup="true">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="nz.ilinic.ideadictate.ToggleRecording"
+                    class="nz.ilinic.ideadictate.ToggleRecordingAction"
+                    text="Start / Stop OpenAI Dictation"
+                    description="Start or stop a recording and insert OpenAI-recognized Russian text into the focused chat prompt"/>
+            <action id="nz.ilinic.ideadictate.ChooseHotkey"
+                    class="nz.ilinic.ideadictate.ChooseDictationHotkeyAction"
+                    text="Choose Dictation Key (F1–F12)"
+                    description="Choose a single F1–F12 key for start and stop"/>
+            <action id="nz.ilinic.ideadictate.ConfigureOpenAI"
+                    class="nz.ilinic.ideadictate.ConfigureOpenAIAction"
+                    text="Configure OpenAI API Key"
+                    description="Store the OpenAI API key in IntelliJ Password Safe"/>
+            <action id="nz.ilinic.ideadictate.PinConversation"
+                    class="nz.ilinic.ideadictate.PinConversationAction"
+                    text="Choose Codex Conversation for Context"
+                    description="Explicitly select which local Codex history may be included in dictation correction"/>
+            <separator/>
             <action id="nz.ilinic.ideadictate.InspectContext"
                     class="nz.ilinic.ideadictate.ContextDiagnosticsAction"
                     text="Inspect IDE and Codex Context"

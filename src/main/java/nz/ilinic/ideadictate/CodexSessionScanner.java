@@ -35,6 +35,38 @@ final class CodexSessionScanner {
 
     private CodexSessionScanner() { }
 
+    /** Candidates only. A candidate must be explicitly pinned by the user before supplying history to OpenAI. */
+    static List<Candidate> recentMatching(String projectBasePath) {
+        List<Candidate> matches = new ArrayList<>();
+        for (Path path : findRecentPaths()) {
+            Session session = inspect(path);
+            if (matchesProject(projectBasePath, session.cwd)) {
+                matches.add(new Candidate(session.path, session.id, session.lastUser, session.modifiedMillis));
+            }
+        }
+        return matches;
+    }
+
+    static String excerptFromPinned(Path path) {
+        if (!Files.isRegularFile(path)) return "";
+        List<String> turns = new ArrayList<>();
+        for (JsonObject event : lastEvents(path)) {
+            String user = userMessage(event);
+            String assistant = assistantMessage(event);
+            String role = user != null ? "Пользователь: " : "Ассистент: ";
+            String content = user != null ? user : assistant;
+            if (content == null || content.isBlank()) continue;
+            String turn = role + preview(content, 380);
+            if (turns.isEmpty() || !turns.get(turns.size() - 1).equals(turn)) turns.add(turn);
+        }
+        int first = Math.max(0, turns.size() - 8);
+        return String.join("\n", turns.subList(first, turns.size()));
+    }
+
+    static boolean belongsToProject(Path path, String basePath) {
+        return Files.isRegularFile(path) && matchesProject(basePath, inspect(path).cwd);
+    }
+
     static String buildReport(String projectBasePath) {
         StringBuilder report = new StringBuilder("LOCAL CODEX SESSIONS (read-only)\n");
 
@@ -91,6 +123,25 @@ final class CodexSessionScanner {
         return report.toString();
     }
 
+    private static List<Path> findRecentPaths() {
+        Path systemRoot = Path.of(PathManager.getSystemPath());
+        List<Path> roots = List.of(systemRoot.resolve("aia/codex"),
+                systemRoot.resolve("aia/agents/codex"),
+                Path.of(System.getProperty("user.home"), ".codex", "sessions"));
+        List<Path> paths = new ArrayList<>();
+        for (Path root : roots) {
+            if (!Files.isDirectory(root)) continue;
+            try (Stream<Path> stream = Files.walk(root, 10)) {
+                stream.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".jsonl"))
+                        .forEach(paths::add);
+            } catch (IOException | SecurityException ignored) { }
+        }
+        return paths.stream().distinct()
+                .sorted(Comparator.comparingLong(CodexSessionScanner::modifiedMillis).reversed())
+                .limit(120).toList();
+    }
+
     private static void appendCandidates(StringBuilder report, List<Session> sessions, int limit) {
         if (sessions.isEmpty()) {
             report.append("    (none)\n");
@@ -131,10 +182,20 @@ final class CodexSessionScanner {
     }
 
     private static String lastUserMessage(Path path) {
+        List<JsonObject> events = lastEvents(path);
+        for (int i = events.size() - 1; i >= 0; i--) {
+            String message = userMessage(events.get(i));
+            if (message != null && !message.isBlank()) return message;
+        }
+        return null;
+    }
+
+    private static List<JsonObject> lastEvents(Path path) {
+        List<JsonObject> result = new ArrayList<>();
         try (SeekableByteChannel channel = Files.newByteChannel(path, StandardOpenOption.READ)) {
             long size = channel.size();
             int length = (int) Math.min(size, MAX_TAIL_BYTES);
-            if (length == 0) return null;
+            if (length == 0) return result;
             channel.position(size - length);
             ByteBuffer bytes = ByteBuffer.allocate(length);
             while (bytes.hasRemaining() && channel.read(bytes) > 0) { /* read tail */ }
@@ -142,15 +203,14 @@ final class CodexSessionScanner {
             String text = StandardCharsets.UTF_8.decode(bytes).toString();
             String[] lines = text.split("\\R");
             // The first line can be truncated when we read only the tail.
-            for (int i = lines.length - 1; i >= (size > length ? 1 : 0); i--) {
+            for (int i = (size > length ? 1 : 0); i < lines.length; i++) {
                 JsonObject event = parseObject(lines[i]);
-                String message = userMessage(event);
-                if (message != null && !message.isBlank()) return message;
+                if (event != null) result.add(event);
             }
         } catch (IOException | SecurityException ignored) {
             // Session file may be locked or inaccessible.
         }
-        return null;
+        return result;
     }
 
     private static String userMessage(JsonObject event) {
@@ -159,7 +219,7 @@ final class CodexSessionScanner {
         if (payload == null) return null;
         if ("event_msg".equals(field(event, "type"))
                 && "user_message".equals(field(payload, "type"))) {
-            return field(payload, "message");
+            return verifiedUserMessage(field(payload, "message"));
         }
         if ("response_item".equals(field(event, "type"))
                 && "message".equals(field(payload, "type"))
@@ -169,12 +229,46 @@ final class CodexSessionScanner {
                 for (JsonElement part : parts) {
                     if (part.isJsonObject()) {
                         String input = field(part.getAsJsonObject(), "text");
-                        if (input != null) return input;
+                        if (input != null) return verifiedUserMessage(input);
                     }
                 }
             }
         }
         return null;
+    }
+
+    private static String assistantMessage(JsonObject event) {
+        if (event == null) return null;
+        JsonObject payload = childObject(event, "payload");
+        if (payload == null) return null;
+        if ("event_msg".equals(field(event, "type"))
+                && "agent_message".equals(field(payload, "type"))) {
+            return field(payload, "message");
+        }
+        if ("response_item".equals(field(event, "type"))
+                && "message".equals(field(payload, "type"))
+                && "assistant".equals(field(payload, "role"))) {
+            JsonElement content = payload.get("content");
+            if (content instanceof JsonArray parts) {
+                for (JsonElement part : parts) {
+                    if (part.isJsonObject()) {
+                        String text = field(part.getAsJsonObject(), "text");
+                        if (text != null) return text;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String verifiedUserMessage(String text) {
+        if (text == null || text.isBlank()) return null;
+        String trimmed = text.stripLeading();
+        if (trimmed.startsWith("The following is the Codex agent history added since")
+                || trimmed.startsWith("<send_user_message_")
+                || trimmed.startsWith("<request_user_input")
+                || trimmed.startsWith("# AGENTS.md instructions")) return null;
+        return text;
     }
 
     private static JsonObject parseObject(String text) {
@@ -230,5 +324,13 @@ final class CodexSessionScanner {
     }
 
     private record Session(Path path, long modifiedMillis, String id, String cwd, String lastUser) { }
+
+    record Candidate(Path path, String id, String lastUser, long modifiedMillis) {
+        String display() {
+            return TIME_FORMAT.format(Instant.ofEpochMilli(modifiedMillis))
+                    + " | " + (id == null ? "unknown" : id)
+                    + " | " + (lastUser == null ? "нет пользовательского текста" : preview(lastUser, 85));
+        }
+    }
 }
 

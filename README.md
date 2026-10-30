@@ -1,62 +1,56 @@
 # IDEA ChatGPT Dictate
 
-An experimental IntelliJ IDEA plugin for **high-quality, project-aware OpenAI dictation into the Codex / JetBrains AI chat composer**.
+IntelliJ IDEA plugin for **Russian voice dictation into the Codex chat composer**, with OpenAI speech recognition and project-aware correction of technical terminology.
 
-**Current version: `0.1.0` — feasibility diagnostic only.** No microphone recording or OpenAI API calls are included yet. We first need to verify which integration points work in the actual IDE/composer, particularly whether the currently active Codex conversation can be identified.
+**Version 0.2.0:** voice dictation, configurable F1–F12 hotkey, optional explicit Codex chat context, and the original diagnostics.
 
-## What this probe does
+## Quick start on Windows
 
-1. **IDE context** — detects the open project, current source file, caret, selected text preview, enclosing PSI names, and Java class/method.
-2. **Codex history** — searches recent local Codex JSONL session files in IntelliJ's local data directory and in `~/.codex/sessions`. Lists session IDs, working directories, timestamps and short previews of the most recent user request. Highlights sessions associated with the current project.
-3. **Composer insertion** — copies a harmless test marker to the clipboard and simulates Paste into whichever input currently has keyboard focus, including the Codex composer when it accepts OS paste.
+1. Clone or update the repository, then run `.\gradlew.bat buildPlugin` from PowerShell (or `gradlew.bat buildPlugin` from `cmd.exe`).
+2. In IntelliJ IDEA open **Settings → Plugins → ⚙ → Install Plugin from Disk** and select the ZIP in `build/distributions/`. Restart if requested.
+3. Choose **Tools → IDEA ChatGPT Dictate → Configure OpenAI API Key** and paste your **OpenAI Platform API key**. The key is saved in IntelliJ Password Safe. Alternatively, set the `OPENAI_API_KEY` environment variable before launching IDEA.
+4. Choose **Tools → IDEA ChatGPT Dictate → Choose Dictation Key (F1–F12)** and select a single F key. If the key is already assigned to an IDE command, the plugin asks before replacing that assignment.
+5. Open your project and a source file, then put the caret inside the **Codex chat input**.
+6. Press your chosen F key **once to start recording**, speak in Russian, and press the **same F key to stop**. Wait for the transcription and correction. The text is inserted into the prompt **without sending it**.
 
-The scanner does **not** reliably identify the active IDE chat yet. A matching project directory is evidence of relevance, not of which chat is open. JetBrains AI Assistant does not publish a stable plugin API for current conversation access. The diagnostic intentionally makes no claim to bypass this limitation.
+When focus moves away from the original prompt during the OpenAI request, the plugin copies the result to the clipboard instead of pasting into another component. Put the caret back into Codex and press `Ctrl+V`.
 
-No data leaves your computer. The plugin never submits a chat message and does not modify source files except if you deliberately run the paste test while a code editor has focus.
+### Optional: use the current Codex conversation as context
 
-## Build in IntelliJ IDEA (Windows)
+The source directory `~/.codex/sessions` may contain **many unrelated sessions** from the same project. The plugin deliberately does not assume that the newest modified file is the active chat.
 
-- Open the cloned repository as a Gradle project.
-- The Java code targets **JDK 21**. The Gradle Foojay toolchain resolver automatically downloads a compatible JDK 21 if it is not available locally, provided Gradle can already start on Java 17+ and has Internet access. The included Gradle Wrapper downloads **Gradle 9.1.0** on first use. The target IDE is IntelliJ IDEA **2025.3.3**, and the plugin declares compatibility with build `253` and newer (actual compatibility with newer releases still needs testing).
-- In the Gradle tool window, run `Tasks > intellij platform > buildPlugin`, or execute `gradlew.bat buildPlugin` from Windows Command Prompt.
-- Install the ZIP in `build/distributions/` using **Settings → Plugins → ⚙ → Install Plugin from Disk**. Alternatively, run `gradle runIde` to launch a development IDE.
+Use **Tools → IDEA ChatGPT Dictate → Choose Codex Conversation for Context** to select the matching conversation **by its session ID, timestamp and most recent actual user message**. This choice is stored per project. Only a **manually selected** conversation can contribute recent turns to the correction model. You can select `[Не использовать историю диалога]` at any time. If you change chats, select the new conversation manually.
 
-> The first build downloads Gradle, the IntelliJ SDK and plugin dependencies, so it requires an Internet connection and can take several minutes.
+If you do not select a conversation, dictation still uses the current project name, source file, caret, selection, and available class/method names. History entries with internal approval-assessment instructions are excluded from the extracted user prompts.
 
-## The three tests
+## Models and processing
 
-### Test 1 — IDE context
+1. **Microphone:** local Java Sound recording of mono PCM to an in-memory WAV file; up to 120 seconds. No temporary audio files are created.
+2. **Speech recognition:** `gpt-transcribe` via `POST /v1/audio/transcriptions`, with Russian/English language hints, project-aware keywords and an IDE-context prompt. This is the accuracy-focused stage.
+3. **Text correction:** `gpt-6-luna` via `POST /v1/responses`, reasoning effort `none`, and `store: false`. It corrects obvious recognition errors and technical identifiers without changing the user's meaning or responding to the request. If correction fails but transcription worked, the plugin falls back to the original recognized text.
+4. **Delivery:** paste into the original focused component when still active; otherwise copy to clipboard for manual insertion. No Enter key is sent.
 
-1. Open a source file in the project, ideally put the caret inside a method. Optionally select a fragment.
-2. Choose **Tools → IDEA ChatGPT Dictate → Inspect IDE and Codex Context**.
-3. Confirm the reported project, file, caret position, selection and class/method or PSI names are correct.
+The second model is intentionally the **low-cost model** because punctuation and terminology correction are simple. Exact model names are constants in `OpenAIClient.java` for easy adjustments.
 
-### Test 2 — Codex session history
+**Billing:** ChatGPT Plus does not include OpenAI Platform API usage; the two API requests are billed separately to your Platform account. The plugin does not use ChatGPT cookies or credentials.
 
-1. Open a Codex chat in IntelliJ and type a **distinct, non-sensitive** phrase such as `dictation-history-probe-123` (you can submit it to the chat for a real history record).
-2. Re-run **Inspect IDE and Codex Context**.
-3. Look for a recent local session with the right project directory and phrase. Check whether opening a different chat changes which file is updated.
-4. Please share the **counts and file paths** and whether the phrase was found; redact prompts and private paths if needed.
+**Privacy:** When you stop recording, microphone audio and context (project path, selected text preview, PSI names, plus recent turns of a specifically selected conversation, if any) are sent directly to OpenAI. No code repository is uploaded wholesale. The API key is never included in logs or version control. The plugin does not send data in the background when you are not dictating.
 
-The result tells us whether local history can provide usable context, and whether an active-session mapping is even plausible. It does not guarantee a mapping.
+## Existing diagnostics
 
-### Test 3 — Paste into the chat composer
+- **Inspect IDE and Codex Context** — shows current file/selection/PSI and discovers local Codex JSONL sessions, including `~/.codex/sessions`.
+- **Insert Test Marker at Caret** — `Ctrl+Alt+Shift+M` to paste `[IDEA_DICTATE_PASTE_TEST]` for verifying the composer without API calls. This is only a diagnostic shortcut; the main dictation action uses your selected F1–F12 key.
 
-1. Click inside the **Codex prompt input**, making sure the text cursor is visible.
-2. Press **Ctrl+Alt+Shift+M**. The plugin will try to paste `[IDEA_DICTATE_PASTE_TEST] ` into the prompt. **It does not press Enter.**
-3. Confirm the marker appears **in the chat prompt**, and not in the source code editor. Delete the marker afterwards.
-4. If the shortcut conflicts with something else, change it under **Settings → Keymap → Insert Test Marker at Caret**. The same command is in the Tools menu, but using a keyboard shortcut preserves focus more reliably.
+The diagnostics list all project-matching sessions but **do not prove which chat is active**. A verified project directory is only a useful candidate filter.
 
-Note: This test temporarily replaces the system clipboard contents. On Windows, automated keyboard input may be blocked by OS accessibility/security policies; if so, the marker remains available to paste manually.
+## Build requirements
 
-## Next step (after test feedback)
+- Gradle Wrapper **9.1.0** included (`.\gradlew.bat`).
+- Java source target **JDK 21**. Foojay toolchain resolver can download JDK 21 automatically if Gradle is already running on Java 17+ and has network access.
+- IntelliJ Platform Gradle Plugin **2.19.0** and target IntelliJ IDEA **2025.3.3**, supporting build `253` and newer in the plugin descriptor. Newer versions still require practical compatibility testing.
+- The ZIP appears under `build/distributions/` after `buildPlugin`.
 
-If insertion works, implement `Push-to-talk → OpenAI speech-to-text → context-aware correction with GPT → paste into composer` using the plugin's editor/PSI context and whatever accessible chat-history context the diagnostic confirms. The precise speech model and context-conditioning route will be selected based on current OpenAI API capabilities. ChatGPT Plus and OpenAI API billing are distinct.
+**Status:** The original 0.1.0 diagnostics were built and confirmed working on Windows with IntelliJ IDEA 2026.2. Version 0.2.0 is new functionality that needs a local build and microphone/API integration test. An OpenAI API key and microphone access are required.
 
-## Status / constraints
-
-- Source written for IntelliJ Platform SDK and Gradle IntelliJ Platform Plugin `2.19.0`.
-- Current build has **not yet been compiled or tested inside the user's IDE**. The purpose of this version is to perform those tests.
-- The Codex JSONL locations are exploratory and may vary across IntelliJ and Codex versions; failure to find a file is an informative diagnostic outcome, not proof there is no history.
-- The plugin is not affiliated with JetBrains or OpenAI.
+This plugin is not affiliated with JetBrains or OpenAI.
 
