@@ -39,8 +39,16 @@ final class DictateStatusWidget implements CustomStatusBarWidget {
 
     void refresh() {
         DictateNotifications.Stage stage = DictateNotifications.currentStage(project);
-        label.setText(I18n.text(stage.messageKey));
-        label.setToolTipText(I18n.text("status.tooltip"));
+        String text = I18n.text(stage.messageKey);
+        String detail = DictateNotifications.currentDetail(project);
+        if (detail != null && !detail.isBlank()
+                && (stage == DictateNotifications.Stage.ERROR
+                || stage == DictateNotifications.Stage.CLIPBOARD)) {
+            String preview = detail.length() > 50 ? detail.substring(0, 49) + "…" : detail;
+            text += " — " + preview;
+        }
+        label.setText(text);
+        label.setToolTipText(detail != null && !detail.isBlank() ? detail : I18n.text("status.tooltip"));
     }
 
     @Override

@@ -11,6 +11,7 @@ import com.intellij.openapi.wm.WindowManager;
 final class DictateNotifications {
     private static final String GROUP = "IDEA ChatGPT Dictate";
     private static final Key<Stage> STAGE_KEY = Key.create("nz.ilinic.ideadictate.status.stage");
+    private static final Key<String> DETAIL_KEY = Key.create("nz.ilinic.ideadictate.status.detail");
 
     enum Stage {
         READY("status.ready"), STARTING("status.starting"), RECORDING("status.recording"),
@@ -30,9 +31,18 @@ final class DictateNotifications {
         return stage == null ? Stage.READY : stage;
     }
 
+    static String currentDetail(Project project) {
+        return project.getUserData(DETAIL_KEY);
+    }
+
     static void stage(Project project, Stage stage) {
         if (project.isDisposed()) return;
         project.putUserData(STAGE_KEY, stage);
+        project.putUserData(DETAIL_KEY, null);
+        refreshWidget(project);
+    }
+
+    private static void refreshWidget(Project project) {
         ApplicationManager.getApplication().invokeLater(() -> {
             if (project.isDisposed()) return;
             var bar = WindowManager.getInstance().getStatusBar(project);
@@ -47,13 +57,21 @@ final class DictateNotifications {
     }
 
     static void warning(Project project, String message) {
+        detail(project, message);
         showStatus(project, message);
         log(project, message, NotificationType.WARNING);
     }
 
     static void error(Project project, String message) {
+        detail(project, message);
         showStatus(project, message);
         log(project, message, NotificationType.ERROR);
+    }
+
+    private static void detail(Project project, String message) {
+        if (project.isDisposed()) return;
+        project.putUserData(DETAIL_KEY, message);
+        refreshWidget(project);
     }
 
     private static void showStatus(Project project, String message) {
