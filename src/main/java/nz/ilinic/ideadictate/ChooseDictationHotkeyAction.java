@@ -16,8 +16,8 @@ public final class ChooseDictationHotkeyAction extends AnAction implements DumbA
         String current = DictationKeymap.saved();
         int index = Messages.showChooseDialog(event.getProject(),
                 "Выбери одну клавишу F1–F12 для начала и окончания диктовки.",
-                "Горячая клавиша диктовки", keys,
-                current.isBlank() ? "F12" : current, Messages.getQuestionIcon());
+                "Горячая клавиша диктовки", Messages.getQuestionIcon(), keys,
+                current.isBlank() ? "F12" : current);
         if (index < 0) return;
         String key = keys[index];
         String[] conflicts = DictationKeymap.conflicts(key);

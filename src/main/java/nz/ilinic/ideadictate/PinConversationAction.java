@@ -42,7 +42,7 @@ public final class PinConversationAction extends AnAction implements DumbAware {
                         "Укажи ОТКРЫТЫЙ диалог Codex по последним сообщениям. "
                                 + "Время изменения само по себе не определяет активную сессию. "
                                 + "Выбранная история будет отправляться в OpenAI только во время диктовки.",
-                        "Контекст текущего диалога Codex", options, options[0], Messages.getQuestionIcon());
+                        "Контекст текущего диалога Codex", Messages.getQuestionIcon(), options, options[0]);
                 if (selected < 0) return;
                 if (selected == 0) {
                     PinnedConversation.set(project, null);
